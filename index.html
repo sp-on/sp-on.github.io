@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PS Media Storage</title>
+    <!-- Иконки и шрифты -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-sec: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: white; border: 1px solid #e2e8f0; color: var(--text); }
+        .btn-danger { background: #ef4444; color: white; }
+
+        /* Search & Filter */
+        .controls {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+        }
+
+        /* Gallery */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            position: relative;
+        }
+
+        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        .preview-container {
+            height: 200px;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .preview-container img, .preview-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card-body { padding: 15px; }
+        .card-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-meta { font-size: 0.8rem; color: var(--text-sec); display: flex; justify-content: space-between; }
+        
+        .admin-controls {
+            margin-top: 10px;
+            display: none; /* Hidden by default */
+            gap: 5px;
+        }
+        
+        .admin-mode .admin-controls { display: flex; }
+
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
+        .badge-vid { background: #e0e7ff; color: #4338ca; }
+        .badge-img { background: #dcfce7; color: #15803d; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 90vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .modal-media-container {
+            display: flex;
+            justify-content: center;
+            max-height: 70vh;
+        }
+        .modal-media-container img, .modal-media-container video {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+        }
+        .settings-panel {
+            min-width: 300px;
+        }
+
+        /* Loading */
+        .loader { text-align: center; padding: 40px; color: var(--text-sec); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <h1>📦 PS Media Storage</h1>
+            </div>
+            <div class="header-controls">
+                <button class="btn-outline" onclick="loadMedia()">🔄 Обновить</button>
+                <button class="btn-primary" onclick="toggleSettings()">⚙️ Админ</button>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal">
+            <div class="modal-content settings-panel">
+                <h3>⚙️ Настройки Админа</h3>
+                <p style="font-size: 0.9rem; color: #666;">Введите GitHub Token для управления файлами (удаление/переименование).</p>
+                <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-primary" onclick="saveToken()">Сохранить</button>
+                    <button class="btn-outline" onclick="document.getElementById('settingsModal').classList.remove('active')">Закрыть</button>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button class="btn-danger" onclick="logoutAdmin()" style="width: 100%">Выйти из админки</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Поиск по названию или описанию...">
+            </div>
+            <div class="filter-group">
+                <button class="btn-outline active" onclick="setFilter('all', this)">Все</button>
+                <button class="btn-outline" onclick="setFilter('video', this)">Видео</button>
+                <button class="btn-outline" onclick="setFilter('photo', this)">Фото</button>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div id="loading" class="loader">⏳ Загрузка медиа из репозиториев...</div>
+        <div id="gallery" class="gallery"></div>
+    </div>
+
+    <!-- Media Preview Modal -->
+    <div id="mediaModal" class="modal" onclick="if(event.target === this) this.classList.remove('active')">
+        <div class="modal-content" style="width: 800px;">
+            <div class="modal-media-container" id="modalMedia"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="modalTitle" style="margin: 0;">Filename</h3>
+                <a id="modalDownload" href="#" class="btn-primary" download>⬇️ Скачать</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- КОНФИГУРАЦИЯ ---
+        const CONFIG = {
+            USERNAME: 'sp-on',     // ВАШ GITHUB USERNAME
+            BASE_REPO: 'PS',        // ПРЕФИКС РЕПОЗИТОРИЕВ
+            BRANCH: 'main'
+        };
+        // --------------------
+
+        let allMedia = [];
+        let ghToken = localStorage.getItem('gh_token') || '';
+
+        // Init
+        if (ghToken) document.body.classList.add('admin-mode');
+        document.getElementById('searchInput').addEventListener('input', renderGallery);
+        loadMedia();
+
+        // Functions
+        async function loadMedia() {
+            const gallery = document.getElementById('gallery');
+            const loader = document.getElementById('loading');
+            
+            gallery.innerHTML = '';
+            loader.style.display = 'block';
+            
+            allMedia = [];
+            
+            // 1. Ищем репозитории (PS-1, PS-2...)
+            let repoIndex = 1;
+            while(true) {
+                const repoName = `${CONFIG.BASE_REPO}-${repoIndex}`;
+                try {
+                    const metaUrl = `https://raw.githubusercontent.com/${CONFIG.USERNAME}/${repoName}/${CONFIG.BRANCH}/metadata.json`;
+                    const filesUrl = `https://api.github.com/repos/${CONFIG.USERNAME}/${repoName}/contents?ref=${CONFIG.BRANCH}`;
+                    
+                    // Загружаем параллельно
+                    const [metaRes, filesRes] = await Promise.all([
+                        fetch(metaUrl).catch(() => null),
+                        fetch(filesUrl).catch(() => null)
+                    ]);
+
+                    if (!filesRes || !filesRes.ok) break; // Репозитории закончились
+                    
+                    const files = await filesRes.json();
+                    const metadata = metaRes && metaRes.ok ? await metaRes.json() : {};
+
+                    files.forEach(file => {
+                        if (file.name === 'metadata.json') return;
+                        
+                        const ext = file.name.split('.').pop().toLowerCase();
+                        const type = ['jpg','png','jpeg','gif','webp'].includes(ext) ? 'photo' : 
+                                   ['mp4','mov','avi','webm'].includes(ext) ? 'video' : null;
+                        
+                        if (type) {
+                            allMedia.push({
+                                name: file.name,
+                                url: file.download_url,
+                                repo: repoName,
+                                desc: metadata[file.name] || file.name,
+                                type: type,
+                                sha: file.sha,
+                                size: (file.size / 1024 / 1024).toFixed(2) // MB
+                            });
+                        }
+                    });
+                    
+                    repoIndex++;
+                } catch (e) {
+                    console.error(e);
+                    break;
+                }
+            }
+            
+            loader.style.display = 'none';
+            renderGallery();
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filterBtn = document.querySelector('.filter-group .active');
+            const filter = filterBtn ? filterBtn.innerText.toLowerCase() : 'все'; // Просто логика
+
+            gallery.innerHTML = '';
+
+            const filtered = allMedia.filter(m => {
+                const matchesSearch = m.desc.toLowerCase().includes(search) || m.name.toLowerCase().includes(search);
+                const matchesType = filter === 'все' || 
+                                  (filter === 'видео' && m.type === 'video') ||
+                                  (filter === 'фото' && m.type === 'photo');
+                return matchesSearch && matchesType;
+            });
+
+            if (filtered.length === 0) {
+                gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #999;">Ничего не найдено</div>';
+                return;
+            }
+
+            filtered.forEach(m => {
+                const el = document.createElement('div');
+                el.className = 'card';
+                
+                // Thumb
+                const thumb = m.type === 'video' 
+                    ? '<div style="font-size: 3rem;">🎥</div>' 
+                    : `<img src="${m.url}" loading="lazy">`;
+
+                el.innerHTML = `
+                    <div class="preview-container" onclick="openPreview('${m.url}', '${m.type}', '${m.desc}')">
+                        ${thumb}
+                        ${m.type === 'video' ? '<div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">Video</div>' : ''}
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title" title="${m.desc}">${m.desc}</div>
+                        <div class="card-meta">
+                            <span>${m.repo}</span>
+                            <span>${m.size} MB</span>
+                        </div>
+                        <div class="admin-controls">
+                            <button class="btn-danger" style="width: 100%; font-size: 0.8rem;" onclick="deleteFile('${m.repo}', '${m.name}', '${m.sha}')">🗑 Удалить</button>
+                        </div>
+                    </div>
+                `;
+                gallery.appendChild(el);
+            });
+        }
+
+        // --- Admin Actions ---
+
+        function toggleSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+            document.getElementById('ghToken').value = ghToken;
+        }
+
+        function saveToken() {
+            const token = document.getElementById('ghToken').value.trim();
+            if (token) {
+                localStorage.setItem('gh_token', token);
+                ghToken = token;
+                document.body.classList.add('admin-mode');
+                document.getElementById('settingsModal').classList.remove('active');
+                alert('Токен сохранен! Режим админа включен.');
+            }
+        }
+
+        function logoutAdmin() {
+            localStorage.removeItem('gh_token');
+            ghToken = '';
+            document.body.classList.remove('admin-mode');
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        async function deleteFile(repo, path, sha) {
+            if (!confirm(`Вы уверены, что хотите удалить ${path}?`)) return;
+            if (!ghToken) return alert('Токен не найден');
+
+            try {
+                const url = `https://api.github.com/repos/${CONFIG.USERNAME}/${repo}/contents/${path}`;
+                const res = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `token ${ghToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `Delete ${path} via Web UI`,
+                        sha: sha,
+                        branch: CONFIG.BRANCH
+                    })
+                });
+
+                if (res.ok) {
+                    alert('Файл удален!');
+                    loadMedia(); // Reload
+                } else {
+                    const err = await res.json();
+                    alert('Ошибка: ' + err.message);
+                }
+            } catch (e) {
+                alert('Ошибка сети: ' + e);
+            }
+        }
+
+        // --- UI Helpers ---
+
+        function setFilter(type, btn) {
+            document.querySelectorAll('.filter-group button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderGallery();
+        }
+
+        function openPreview(url, type, title) {
+            const modal = document.getElementById('mediaModal');
+            const container = document.getElementById('modalMedia');
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalDownload').href = url;
+
+            container.innerHTML = type === 'video' 
+                ? `<video src="${url}" controls autoplay></video>`
+                : `<img src="${url}">`;
+            
+            modal.classList.add('active');
+        }
+    </script>
+</body>
+</html>
